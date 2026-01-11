@@ -319,21 +319,20 @@ void triggerSwitchEvent(int value) {
 
 # 👥 Contributors
 
-### **Primary Developer**
-**William Lucid**  
-Lead architect, embedded systems developer, and creator of the E220 WOR Remote Switch Transmitter.  
-Responsible for system design, implementation, testing, and integration of all hardware and firmware components.
+### Lead Developer
+William Lucid (AB9NQ)
 
-### **AI Engineering Assistance**
-**Microsoft Copilot**  
-Provided architectural guidance, dual‑core FreeRTOS design patterns, interrupt‑driven WOR pipeline,  
-code refactoring support, and technical documentation including flowcharts, diagrams, and PDF‑ready materials.
+AI Development Team
+Claude (Anthropic) - Primary code architecture, debugging, WOR protocol implementation, dual-core optimization
+Microsoft Copilot - Initial dual-core FreeRTOS structure
+Google Gemini - Code refinement assistance
 
-### **Acknowledgments**
-Special thanks to the open‑source community and the maintainers of the **LoRa_E220** library,  
-whose work made reliable EBYTE module integration possible.
+Special Thanks
+Renzo Mischianti for his E220 Library and Support Forum
+Community support from ESP32.com and RNTLabs.com
 
 ---
+
 
 
 
