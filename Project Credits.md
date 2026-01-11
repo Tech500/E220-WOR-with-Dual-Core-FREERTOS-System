@@ -70,7 +70,7 @@ GitHub: [@Tech500](https://github.com/Tech500)
 
 ## Documentation & Power Analysis
 
-Nordic PPK 2 power measurements and detailed analysis will be available soon at [Tech500's GitHub Repository](https://github.com/Tech500).
+Nordic PPK 2 power measurements and detailed analysis will be available soon at [Tech500's GitHub Repository]([https://github.com/Tech50](https://github.com/Tech500/E220-WOR-with-Dual-Core-FREERTOS-System)0).
 
 ---
 
