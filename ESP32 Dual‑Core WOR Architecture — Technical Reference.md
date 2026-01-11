@@ -323,15 +323,18 @@ void triggerSwitchEvent(int value) {
 William Lucid (AB9NQ)
 
 AI Development Team
+
 Claude (Anthropic) - Primary code architecture, debugging, WOR protocol implementation, dual-core optimization
 Microsoft Copilot - Initial dual-core FreeRTOS structure
 Google Gemini - Code refinement assistance
 
 Special Thanks
+
 Renzo Mischianti for his E220 Library and Support Forum
 Community support from ESP32.com and RNTLabs.com
 
 ---
+
 
 
 
