@@ -317,23 +317,24 @@ void triggerSwitchEvent(int value) {
 
 ---
 
-# 👥 Contributors
+---
 
-### Lead Developer
-William Lucid (AB9NQ)
+## **Contributors**
 
-AI Development Team
+### **Lead Developer**
+**William Lucid (AB9NQ)**
 
-Claude (Anthropic) - Primary code architecture, debugging, WOR protocol implementation, dual-core optimization
-Microsoft Copilot - Initial dual-core FreeRTOS structure
-Google Gemini - Code refinement assistance
+### **AI Development Team**
+- **Claude (Anthropic)** - Primary code architecture, debugging, WOR protocol implementation, dual-core optimization
+- **Microsoft Copilot** - Initial dual-core FreeRTOS structure
+- **Google Gemini** - Code refinement assistance
 
-Special Thanks
-
-Renzo Mischianti for his E220 Library and Support Forum
-Community support from ESP32.com and RNTLabs.com
+### **Special Thanks**
+- **Renzo Mischianti** for his E220 Library and Support Forum
+- Community support from ESP32.com and RNTLabs.com
 
 ---
+
 
 
 
