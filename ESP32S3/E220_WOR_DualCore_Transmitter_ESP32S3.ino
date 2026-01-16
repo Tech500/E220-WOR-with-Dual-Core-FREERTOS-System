@@ -1,7 +1,7 @@
 /*
- * E220_WOR_Transmitter_ESP32S3.ino
+ * E220_WOR_DualCore_Transmitter_ESP32S3.ino
  * Optimized for ESP32-S3 (ESP32-S3-WROOM-1-N16R8)
- * 01/11/2026
+ * 01/16/2026
  * 
  * ESP32-S3 specific features:
  * - USB CDC Serial (not UART0)
@@ -11,9 +11,9 @@
  * GPIO Assignments for ESP32-S3:
  * E220 M0  -> GPIO 5
  * E220 M1  -> GPIO 6  
- * E220 TX  -> GPIO 17 (RX2)
- * E220 RX  -> GPIO 18 (TX2)
- * E220 AUX -> GPIO 7
+ * E220 TX  -> GPIO 15 (connects to ESP32 RXD2)
+ * E220 RX  -> GPIO 16 (connects to ESP32 TXD2)
+ * E220 AUX -> GPIO 4  (CORRECTED - matches receiver)
  * KY002S Trigger -> GPIO 8
  * KY002S Status  -> GPIO 9
  */
@@ -37,12 +37,11 @@
 // ---------------------------
 // E220 Setup - ESP32-S3 GPIO
 // ---------------------------
-#define RXD2 17
-#define TXD2 18
+#define RXD2 16  // Serial2 RX
+#define TXD2 15  // Serial2 TX
 #define M0_PIN 5
 #define M1_PIN 6
-#define AUX_PIN 7
-
+#define AUX_PIN 4  // Must match receiver!
 #define TRIGGER 8      // KY002S MOSFET Bi-Stable Switch (drive)
 #define KY002S_PIN 9   // KY002S MOSFET Bi-Stable Switch (sense)
 #define ALERT 10       // ina226 Battery Monitor (optional)
@@ -52,8 +51,8 @@ LoRa_E220 e220ttl(&Serial2, AUX_PIN, M0_PIN, M1_PIN);
 // ---------------------------
 // Network
 // ---------------------------
-const char *ssid = "R2D2";
-const char *password = "Sky7388500";
+const char *ssid = "Removed";
+const char *password = "Removed";
 
 AsyncWebServer server(80);
 
@@ -218,118 +217,88 @@ void initRadio() {
   Serial.println("E220 Ready\n");
 }
 
-// ---------------------------
-// Send WOR Preamble
-// ---------------------------
-void sendPreamble() {
+// ---------------------------------------------
+// Send Preamble and Paylod 
+//----------------------------------------------
+void sendWORMessage(int switchValue) {
   unsigned long startTime = millis();
-  
-  Serial.println("\n=== STEP 1: WOR PREAMBLE ===");
-  Serial.print("  From: 0x");
-  Serial.println(MY_ADDRESS_ADDL, HEX);
-  Serial.print("  To:   0x");
-  Serial.println(RECEIVER_ADDRESS_ADDL, HEX);
-  Serial.print("  Ch:   ");
-  Serial.println(CHANNEL);
-  
-  waitForAux();
-  
-  unsigned long modeStart = millis();
-  Serial.println("  Setting WOR TX mode...");
-  e220ttl.setMode(MODE_1_WOR_TRANSMITTER);
-  delay(100);
-  waitForAux();
-  Serial.print("  Mode switch took: ");
-  Serial.print(millis() - modeStart);
-  Serial.println("ms");
-  
-  unsigned long sendStart = millis();
-  Serial.println("  Sending preamble...");
-  ResponseStatus rs = e220ttl.sendFixedMessage(0, RECEIVER_ADDRESS_ADDL, CHANNEL, "WAKE");
-  
-  Serial.print("  Status: ");
-  Serial.println(rs.getResponseDescription());
-  Serial.print("  Preamble transmission took: ");
-  Serial.print(millis() - sendStart);
-  Serial.println("ms");
-  
-  waitForAux();
+  Serial.println("\n==============================");
+  Serial.println("   WOR SEND SEQUENCE START");
+  Serial.println("==============================");
 
-  Serial.println("  Waiting for RX wake...");
-  
-  // 3 second wait with progress and watchdog feeding
-  for (int i = 3; i > 0; i--) {
-    Serial.print("    ");
-    Serial.print(i);
-    Serial.println(" seconds...");
-    
-    for (int j = 0; j < 10; j++) {
-      delay(100);
-      yield();
-    }
-  }
-  
-  Serial.print("=== PREAMBLE COMPLETE (Total: ");
-  Serial.print(millis() - startTime);
-  Serial.println("ms) ===\n");
-}
-
-// ---------------------------
-// Send Data Message
-// ---------------------------
-void sendDataMessage(int switchValue) {
-  unsigned long startTime = millis();
-  
-  Serial.println("=== STEP 2: DATA MESSAGE ===");
-  Serial.print("  Switch value: ");
-  Serial.println(switchValue);
-
-  waitForAux();
-
-  unsigned long prepStart = millis();
+  // ---------------------------------------
+  // STEP 1: PREPARE MESSAGE PAYLOAD
+  // ---------------------------------------
+  Serial.println("STEP 1: Preparing data payload...");
   memset(&outgoing, 0, sizeof(Message));
   outgoing.switchData = switchValue;
-  
+
   get_time();
   strncpy(outgoing.dateTime, time_output, MAX_dateTime_LENGTH - 1);
   outgoing.dateTime[MAX_dateTime_LENGTH - 1] = '\0';
 
+  Serial.print("  Switch value: ");
+  Serial.println(switchValue);
   Serial.print("  Timestamp: ");
   Serial.println(outgoing.dateTime);
-  Serial.print("  Message prep took: ");
-  Serial.print(millis() - prepStart);
-  Serial.println("ms");
 
-  unsigned long sendStart = millis();
-  Serial.println("  Sending data...");
-  ResponseStatus rs = e220ttl.sendFixedMessage(0, RECEIVER_ADDRESS_ADDL, CHANNEL,
-                                               &outgoing, sizeof(Message));
-  
-  Serial.print("  Status: ");
-  Serial.println(rs.getResponseDescription());
-  Serial.print("  Data transmission took: ");
-  Serial.print(millis() - sendStart);
-  Serial.println("ms");
+  // ---------------------------------------
+  // STEP 2: ENTER WOR TX MODE
+  // ---------------------------------------
+  Serial.println("\nSTEP 2: Entering WOR TX mode...");
+  waitForAux();
+  e220ttl.setMode(MODE_1_WOR_TRANSMITTER);
+  delay(100);
+  waitForAux();
+  Serial.println("  WOR TX mode confirmed.");
 
+  // ---------------------------------------
+  // STEP 3: SEND PREAMBLE
+  // ---------------------------------------
+  Serial.println("\nSTEP 3: Sending WOR preamble...");
+  ResponseStatus rsPre = e220ttl.sendFixedMessage(
+      0, RECEIVER_ADDRESS_ADDL, CHANNEL, "WAKE"
+  );
+
+  Serial.print("  Preamble status: ");
+  Serial.println(rsPre.getResponseDescription());
   waitForAux();
 
-  unsigned long modeStart = millis();
-  Serial.println("  Returning to normal mode...");
+  // ---------------------------------------
+  // STEP 4: SWITCH BACK TO NORMAL TX MODE
+  // ---------------------------------------
+  Serial.println("\nSTEP 4: Switching to NORMAL TX mode...");
   e220ttl.setMode(MODE_0_NORMAL);
   delay(100);
   waitForAux();
-  Serial.print("  Mode switch took: ");
-  Serial.print(millis() - modeStart);
-  Serial.println("ms");
+  Serial.println("  Normal TX mode confirmed.");
 
-  Serial.print("=== DATA COMPLETE (Total: ");
+  // ---------------------------------------
+  // STEP 5: SEND ACTUAL DATA PACKET
+  // ---------------------------------------
+  Serial.println("\nSTEP 5: Sending data packet...");
+  ResponseStatus rsData = e220ttl.sendFixedMessage(
+      0, RECEIVER_ADDRESS_ADDL, CHANNEL,
+      &outgoing, sizeof(Message)
+  );
+
+  Serial.print("  Data status: ");
+  Serial.println(rsData.getResponseDescription());
+  waitForAux();
+
+  // ---------------------------------------
+  // DONE
+  // ---------------------------------------
+  Serial.println("\n==============================");
+  Serial.print("   WOR SEND COMPLETE (");
   Serial.print(millis() - startTime);
-  Serial.println("ms) ===\n");
+  Serial.println(" ms)");
+  Serial.println("==============================\n");
 }
 
-// ---------------------------
-// Main WOR Send Function
-// ---------------------------
+// -----------------------------
+// Start WOR Preamble and Payload
+// -----------------------------
 void performWORSend(int switchValue) {
   Serial.println("\n╔════════════════════════════════════════╗");
   Serial.println("║     WOR TRANSMISSION STARTING          ║");
@@ -340,9 +309,8 @@ void performWORSend(int switchValue) {
   } else if (switchValue == 2) {
     Serial.println("Event: Battery Switch OFF");
   }
-  
-  sendPreamble();
-  sendDataMessage(switchValue);
+    
+  sendWORMessage(switchValue);
   
   Serial.println("╔════════════════════════════════════════╗");
   Serial.println("║     WOR TRANSMISSION COMPLETE          ║");
@@ -367,7 +335,7 @@ void setup() {
   delay(1000);  // Give USB time to enumerate
 
   Serial.println("\n\n╔════════════════════════════════════════╗");
-  Serial.println("║   E220 WOR Transmitter (ESP32-S3)      ║");
+  Serial.println("║   E220 WOR Transmitter (ESP32-S3) v3   ║");
   Serial.println("╚════════════════════════════════════════╝\n");
 
   // Initialize pins
@@ -397,8 +365,6 @@ void setup() {
   server.on("/relay", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, PSTR("text/html"), HTML7, processor7);
     
-    // Set flag for switchData = 1 (Turn ON)
-    sendValue = 1;
     sendRequested = true;
     
     // Start 60-second countdown for auto-shutdown
@@ -422,6 +388,7 @@ void loop() {
     sendRequested = false;
     
     Serial.println("\n🌐 WEB REQUEST RECEIVED");
+    sendValue = 1;
     performWORSend(sendValue);
   }
   
