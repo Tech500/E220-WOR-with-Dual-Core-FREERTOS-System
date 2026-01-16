@@ -1,5 +1,5 @@
 /*
- * E220_WOR_Receiver_ESP32S3.ino      v4.1
+ * E220_WOR_DualCore_Receiver_ESP32S3.ino
  * ---------------------------------------------------------
  * Optimized for ESP32-S3 and E220-900T22S (LoRa)
  * Features: Dual-Core processing, EXT0 Wake-on-Radio, 
@@ -304,3 +304,4 @@ void enterDeepSleep() {
 void loop() {
   // Idle
 }
+
