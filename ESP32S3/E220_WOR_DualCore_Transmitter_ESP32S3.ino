@@ -1,5 +1,5 @@
 /*
- * E220_WOR_Transmitter_ESP32S3.ino - v4 Working
+ * E220_WOR_DualCore_Transmitter_ESP32S3.ino  v4
  * Optimized for ESP32-S3 (ESP32-S3-WROOM-1-N16R8)
  * 01/16/2026
  * 
