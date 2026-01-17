@@ -1,5 +1,6 @@
 /*
- * E220_WOR_DualCore_Receiver_ESP32S3.ino
+ * E220_WOR_DualCore_Receiver_ESP32S3.ino v6
+ * 01/17/2026 @ 02:00 EST
  * ---------------------------------------------------------
  * Optimized for ESP32-S3 and E220-900T22S (LoRa)
  * Features: Dual-Core processing, EXT0 Wake-on-Radio, 
@@ -159,7 +160,7 @@ void setup() {
   bootCount++;
 
   Serial.println("\n╔════════════════════════════════════════╗");
-  Serial.println("║   E220 WOR Dual-Core Receiver v5       ║");
+  Serial.println("║   E220 WOR Dual-Core Receiver v6       ║");
   Serial.println("╚════════════════════════════════════════╝");
   Serial.print("Boot Count: "); Serial.println(bootCount);    // Display Configuration
 
@@ -257,22 +258,36 @@ void logicTask(void* parameter) {
     inboxReady = false;
     bool isCurrentlyOn = (digitalRead(KY002S_STATUS) == HIGH);
 
+    // Display current state
+    Serial.print("Current Power State: ");
+    Serial.println(isCurrentlyOn ? "ON" : "OFF");
+    Serial.print("Requested State: ");
+    Serial.println(inbox.switchData == 1 ? "ON" : "OFF");
+
     // Toggle logic
     if ((inbox.switchData == 1 && !isCurrentlyOn) || (inbox.switchData == 2 && isCurrentlyOn)) {
       digitalWrite(KY002S_TRIGGER, HIGH);
       vTaskDelay(pdMS_TO_TICKS(PULSE_MS));
       digitalWrite(KY002S_TRIGGER, LOW);
-      Serial.println("✓ Switch Toggled");
+      
+      if (inbox.switchData == 1) {
+        Serial.println("✓ Battery Power Switched ON");
+      } else {
+        Serial.println("✓ Battery Power Switched OFF");
+      }
+    } else {
+      Serial.println("⚠ Already in requested state - No toggle needed");
     }
 
     // Send ACK
     waitForAux();
     e220ttl.sendFixedMessage(0, TRANSMITTER_ADDRESS, CHANNEL, "ACK");
-    Serial.println("✓ ACK Sent");
+    Serial.println("✓ ACK Sent to Transmitter");
     waitForAux();
   }
 
   vTaskDelay(pdMS_TO_TICKS(500));
+  //Serial.println("Entering Deep Sleep...");
   enterDeepSleep();
   vTaskDelete(NULL);
 }
@@ -281,7 +296,8 @@ void logicTask(void* parameter) {
 // Power Management: S3 Optimized Deep Sleep
 // ================================================================
 void enterDeepSleep() {
-  Serial.println("\n>>> Entering WOR Deep Sleep...");
+  Serial.println("\n>>> Entering Deep Sleep...");
+  Serial.println(">>> Awaiting next web request\n");
   Serial.flush();
 
   e220ttl.setMode(MODE_2_WOR_RECEIVER);
@@ -304,4 +320,3 @@ void enterDeepSleep() {
 void loop() {
   // Idle
 }
-
