@@ -160,7 +160,7 @@ void setup() {
   bootCount++;
 
   Serial.println("\n╔════════════════════════════════════════╗");
-  Serial.println("║   E220 WOR Dual-Core Receiver v6       ║");
+  Serial.println("║   E220 WOR Dual-Core Receiver          ║");
   Serial.println("╚════════════════════════════════════════╝");
   Serial.print("Boot Count: "); Serial.println(bootCount);    // Display Configuration
 
@@ -181,7 +181,7 @@ void setup() {
     initRadio();
     enterDeepSleep();
   } 
-else if (reset_reason == ESP_RST_DEEPSLEEP) {
+  else if (reset_reason == ESP_RST_DEEPSLEEP) {
     Serial.println("Waking from Deep Sleep - Quick Init");
     
     // Release GPIO holds
@@ -201,12 +201,8 @@ else if (reset_reason == ESP_RST_DEEPSLEEP) {
     // Module is already in MODE_2_WOR_RECEIVER from before sleep
     // No need to reconfigure, just ensure pins are correct
     
-    /*
-    digitalWrite(M0_PIN, LOW);
-    digitalWrite(M1_PIN, HIGH);  // MODE_2
-    delay(100);
-    waitForAux();
-    */
+   
+   
 
     // Now safe to launch tasks that call e220ttl.available()
     xTaskCreatePinnedToCore(commTask, "CommTask", 4096, NULL, 2, &commTaskHandle, 0);
@@ -256,19 +252,28 @@ void logicTask(void* parameter) {
 
   if (inboxReady) {
     inboxReady = false;
+
+    pinMode(KY002S_TRIGGER, OUTPUT);
+    pinMode(KY002S_STATUS, INPUT);
+
     bool isCurrentlyOn = (digitalRead(KY002S_STATUS) == HIGH);
 
-    // Display current state
-    Serial.print("Current Power State: ");
-    Serial.println(isCurrentlyOn ? "ON" : "OFF");
+    // Display Requested state
     Serial.print("Requested State: ");
     Serial.println(inbox.switchData == 1 ? "ON" : "OFF");
 
     // Toggle logic
-    if ((inbox.switchData == 1 && !isCurrentlyOn) || (inbox.switchData == 2 && isCurrentlyOn)) {
+    if (KY002S_STATUS == LOW){
       digitalWrite(KY002S_TRIGGER, HIGH);
       vTaskDelay(pdMS_TO_TICKS(PULSE_MS));
       digitalWrite(KY002S_TRIGGER, LOW);
+    } 
+    
+    if(KY002S_STATUS == HIGH) {
+      digitalWrite(KY002S_TRIGGER, HIGH);
+      vTaskDelay(pdMS_TO_TICKS(PULSE_MS));
+      digitalWrite(KY002S_TRIGGER, LOW);
+    }
       
       if (inbox.switchData == 1) {
         Serial.println("✓ Battery Power Switched ON");
@@ -284,8 +289,7 @@ void logicTask(void* parameter) {
     e220ttl.sendFixedMessage(0, TRANSMITTER_ADDRESS, CHANNEL, "ACK");
     Serial.println("✓ ACK Sent to Transmitter");
     waitForAux();
-  }
-
+  
   vTaskDelay(pdMS_TO_TICKS(500));
   //Serial.println("Entering Deep Sleep...");
   enterDeepSleep();
@@ -296,8 +300,13 @@ void logicTask(void* parameter) {
 // Power Management: S3 Optimized Deep Sleep
 // ================================================================
 void enterDeepSleep() {
-  Serial.println("\n>>> Entering Deep Sleep...");
-  Serial.println(">>> Awaiting next web request\n");
+  
+  if(inbox.switchData == 1){
+    Serial.println("\n>>> Awaiting countdown timer to expire...\n");
+  }else if(inbox.switchData == 2){
+    Serial.println("\n>>> Entering Deep Sleep...\n");
+  }
+
   Serial.flush();
 
   e220ttl.setMode(MODE_2_WOR_RECEIVER);
