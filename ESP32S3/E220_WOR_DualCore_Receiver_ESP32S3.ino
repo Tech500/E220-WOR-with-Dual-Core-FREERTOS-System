@@ -199,10 +199,6 @@ void setup() {
     delay(100);
     
     // Module is already in MODE_2_WOR_RECEIVER from before sleep
-    // No need to reconfigure, just ensure pins are correct
-    
-   
-   
 
     // Now safe to launch tasks that call e220ttl.available()
     xTaskCreatePinnedToCore(commTask, "CommTask", 4096, NULL, 2, &commTaskHandle, 0);
@@ -254,7 +250,7 @@ void logicTask(void* parameter) {
     inboxReady = false;
 
     pinMode(KY002S_TRIGGER, OUTPUT);
-    pinMode(KY002S_STATUS, INPUT);
+    pinMode(KY002S_STATUS, INPUT);   
 
     bool isCurrentlyOn = (digitalRead(KY002S_STATUS) == HIGH);
 
