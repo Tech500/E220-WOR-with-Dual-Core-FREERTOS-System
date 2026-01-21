@@ -16,7 +16,6 @@ This project demonstrates implementation of LoRa communication with deep sleep p
   - *Ebyte EoRa-S3-900TB is an excellent dev board; ESP32-S3 with SX1262 LoRa Radio (µA range on battery) - future upgrade*
 - **Long Range:** Up to 10 km estimated range at 30 dBm transmit power
 - **Dual Platform Support:** Compatible with both ESP32 and ESP32-S3 development boards
-- **Web Interface:** HTML-based configuration and monitoring
 
 ## Technical Highlights
 
