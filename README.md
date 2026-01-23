@@ -8,6 +8,8 @@ This project demonstrates implementation of LoRa communication with deep sleep p
 
 **GitHub Repository:** [E220-WOR-with-Dual-Core-FREERTOS-System](https://github.com/Tech500/E220-WOR-with-Dual-Core-FREERTOS-System)
 
+Video demonstration of project:  [Demonstration](https://drive.google.com/file/d/1AwHzdBJNkUyV5_DEXMmgqUM9zlnS1TRc/view?usp=sharing)
+
 ## Key Features
 
 - **Dual-Core Architecture:** Leverages both cores of ESP32/ESP32-S3 with FreeRTOS task management
