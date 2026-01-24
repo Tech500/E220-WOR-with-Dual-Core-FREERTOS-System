@@ -1,18 +1,8 @@
 /*
- * E220_WOR_DualCore_Receiver_ESP32S3.ino v6
- * 01/18/2026 @ 22:15 EST
+ * E220_WOR_DualCore_Receiver_ESP32S3.ino v7 - WITH TIMING
+ * 01/24/2026
  * ---------------------------------------------------------
- * Optimized for ESP32-S3 and E220-900T22S (LoRa)
- * Features: Dual-Core processing, EXT0 Wake-on-Radio, 
- * RTC Domain management for S3, and Strapping Pin Avoidance.
- * * GPIO Assignments for ESP32-S3:
- * E220 M0  -> GPIO 5
- * E220 M1  -> GPIO 6
- * E220 TX  -> GPIO 15 (Connects to ESP32 RX2)
- * E220 RX  -> GPIO 16 (Connects to ESP32 TX2)
- * E220 AUX -> GPIO 4  (EXT0 wake source + External Pull-up)
- * KY002S Trigger -> GPIO 8
- * KY002S Status  -> GPIO 9
+ * Added comprehensive timing instrumentation for all receiver events
  * ---------------------------------------------------------
  */
 
@@ -46,17 +36,30 @@ struct Message {
 
 // Cross-core communication
 volatile bool inboxReady = false;
-Message inbox;
+Message inbox = {0, ""};  // <-- Initialize with zeros
+//Message inbox;
 RTC_DATA_ATTR int bootCount = 0;
 
 // Task handles
 TaskHandle_t commTaskHandle = NULL;
 TaskHandle_t logicTaskHandle = NULL;
 
+// Timing variables
+unsigned long wakeTime = 0;
+unsigned long radioReadyTime = 0;
+unsigned long packetStartTime = 0;
+unsigned long packetReceivedTime = 0;
+unsigned long relayStartTime = 0;
+unsigned long relayCompleteTime = 0;
+unsigned long ackStartTime = 0;
+unsigned long ackCompleteTime = 0;
+unsigned long sleepPrepTime = 0;
+
 // Forward declarations
 void enterDeepSleep();
 void commTask(void* parameter);
 void logicTask(void* parameter);
+void printTimingSummary();
 
 // ================================================================
 // Utility: Wait for AUX to go HIGH
@@ -65,11 +68,11 @@ bool waitForAux(uint32_t timeout = 5000) {
     uint32_t start = millis();
     while (digitalRead(AUX_PIN) == LOW) {
         if (millis() - start >= timeout) {
-            return false;   // timed out
+            return false;
         }
         vTaskDelay(1);
     }
-    return true;            // AUX went HIGH
+    return true;
 }
 
 // ---------------------------
@@ -87,11 +90,6 @@ void initRadio() {
 
   e220ttl.begin();
   delay(100);
-
-  // Start in NORMAL mode
-  //e220ttl.setMode(MODE_2_WOR_RECEIVER);
-  //delay(100);
-  //waitForAux();
 
   e220ttl.setMode(MODE_0_NORMAL);
   delay(100);
@@ -135,13 +133,13 @@ void initRadio() {
 
 void print_reset_reason(int reason) {
     switch (reason) {
-        case 1: Serial.println("POWERON_RESET"); break;     // Power-on reset
-        case 3: Serial.println("SW_RESET"); break;          // Software reset
-        case 4: Serial.println("OWDT_RESET"); break;        // Legacy watchdog reset
-        case 5: Serial.println("DEEPSLEEP_RESET"); break;   // Deep sleep reset
-        case 9: Serial.println("RTCWDT_SYS_RESET"); break;  // RTC watchdog reset
-        case 15: Serial.println("RTCWDT_BROWN_OUT_RESET"); break; // Brownout reset
-        case 16: Serial.println("RTCWDT_RTC_RESET"); break; // RTC watchdog reset (digital core & RTC)
+        case 1: Serial.println("POWERON_RESET"); break;
+        case 3: Serial.println("SW_RESET"); break;
+        case 4: Serial.println("OWDT_RESET"); break;
+        case 5: Serial.println("DEEPSLEEP_RESET"); break;
+        case 9: Serial.println("RTCWDT_SYS_RESET"); break;
+        case 15: Serial.println("RTCWDT_BROWN_OUT_RESET"); break;
+        case 16: Serial.println("RTCWDT_RTC_RESET"); break;
         default: Serial.println("UNKNOWN_RESET");
     }
 }
@@ -150,11 +148,15 @@ void print_reset_reason(int reason) {
 // Setup: Entry Point
 // ================================================================
 void setup() {
-  // 1. CRITICAL S3 FIX: Release RTC lock so GPIO 4 works for digitalRead
+  wakeTime = millis(); // START TIMING
+
+  setCpuFrequencyMhz(80); 
+
   rtc_gpio_deinit(AUX_PIN);
   
   Serial.begin(115200);
   while (!Serial && millis() < 2000); 
+
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   
   bootCount++;
@@ -162,47 +164,62 @@ void setup() {
   Serial.println("\n╔════════════════════════════════════════╗");
   Serial.println("║   E220 WOR Dual-Core Receiver          ║");
   Serial.println("╚════════════════════════════════════════╝");
-  Serial.print("Boot Count: "); Serial.println(bootCount);    // Display Configuration
+  Serial.print("Boot Count: "); Serial.println(bootCount);
 
-  // Initialize Hardware Pins
   pinMode(M0_PIN, OUTPUT);
   pinMode(M1_PIN, OUTPUT);
   pinMode(AUX_PIN, INPUT);
   
-  // 2a. Determine reset reason
   Serial.println("Reset Reason:");
-  int resetReason = rtc_get_reset_reason(0); // CPU0 reset reason
+  int resetReason = rtc_get_reset_reason(0);
   print_reset_reason(resetReason);
   
-  esp_reset_reason_t reset_reason = esp_reset_reason   ();
+  esp_reset_reason_t reset_reason = esp_reset_reason();
   
   if (reset_reason == ESP_RST_POWERON) {
-   
     initRadio();
     enterDeepSleep();
   } 
   else if (reset_reason == ESP_RST_DEEPSLEEP) {
-    Serial.println("Waking from Deep Sleep - Quick Init");
+    Serial.println("\n╔════════════════════════════════════════╗");
+    Serial.println("║     WOR WAKE-UP SEQUENCE STARTING      ║");
+    Serial.println("╚════════════════════════════════════════╝");
+    Serial.println("Event: Wake from Deep Sleep");
+    Serial.println();
+    Serial.println("==============================");
+    Serial.println("   WOR RECEIVE SEQUENCE START");
+    Serial.println("==============================");
+    
+    Serial.print("WAKE: Wake-up detected at ");
+    Serial.print(wakeTime);
+    Serial.println(" ms");
     
     // Release GPIO holds
     gpio_hold_dis(M0_PIN);
     gpio_hold_dis(M1_PIN);
     gpio_deep_sleep_hold_dis();
     
-    // Re-initialize Serial2
+    Serial.println();
+    Serial.println("STEP 1: Re-initializing Serial & E220...");
     Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
     delay(100);
     
-    // CRITICAL: Initialize the E220 library object
-    // This sets up internal pointers/state but doesn't reconfigure the module
     e220ttl.begin();
     delay(100);
     
-    // Module is already in MODE_2_WOR_RECEIVER from before sleep
+    radioReadyTime = millis();
+    Serial.print("  Radio ready in ");
+    Serial.print(radioReadyTime - wakeTime);
+    Serial.println(" ms");
+    Serial.println("  Module already in WOR_RECEIVER mode.");
+    Serial.println();
 
-    // Now safe to launch tasks that call e220ttl.available()
+    packetStartTime = millis();
+    Serial.println("STEP 2: Launching dual-core tasks...");
     xTaskCreatePinnedToCore(commTask, "CommTask", 4096, NULL, 2, &commTaskHandle, 0);
     xTaskCreatePinnedToCore(logicTask, "LogicTask", 4096, NULL, 1, &logicTaskHandle, 1);
+    Serial.println("  Tasks created on Core 0 (Comm) and Core 1 (Logic).");
+    Serial.println();
   }
 }
 
@@ -210,10 +227,11 @@ void setup() {
 // Core 0: Communication (Receive Data)
 // ================================================================
 void commTask(void* parameter) {
-  unsigned long startTime = millis();
+  Serial.println("STEP 3: Waiting for data packet...");
+  unsigned long waitStart = millis();
   bool dataReceived = false;
 
-  // Wait up to 12 seconds for the actual packet following preamble
+  // Wait up to 12 seconds for the actual packet
   for (int i = 0; i < 120 && !dataReceived; i++) {
     if (e220ttl.available() > 0) {
       dataReceived = true;
@@ -223,16 +241,28 @@ void commTask(void* parameter) {
   }
 
   if (dataReceived) {
+    Serial.print("  Packet detected after ");
+    Serial.print(millis() - waitStart);
+    Serial.println(" ms");
+    
     ResponseStructContainer rsc = e220ttl.receiveMessageRSSI(sizeof(Message));
     if (rsc.status.code == 1 && rsc.data != nullptr) {
       memcpy(&inbox, rsc.data, sizeof(Message));
-      inbox.dateTime[39] = '\0'; // Safety null
+      inbox.dateTime[39] = '\0';
       inboxReady = true;
-      Serial.println(">>> Message Received Successfully");
+      
+      packetReceivedTime = millis();
+      Serial.print("  Packet received successfully. RSSI: ");
+      Serial.println(rsc.rssi);
+      Serial.print("  Reception time: ");
+      Serial.print(packetReceivedTime - packetStartTime);
+      Serial.println(" ms");
+      Serial.println();
     }
     rsc.close();
   } else {
-    Serial.println("⚠️ No packet followed preamble.");
+    Serial.println("  ⚠️ Timeout - No packet received after 12 seconds.");
+    Serial.println();
   }
   vTaskDelete(NULL);
 }
@@ -249,59 +279,139 @@ void logicTask(void* parameter) {
   if (inboxReady) {
     inboxReady = false;
 
+    Serial.println("STEP 4: Processing received data...");
+    Serial.print("  Switch Command: ");
+    Serial.println(inbox.switchData);
+    Serial.print("  Timestamp: ");
+    Serial.println(inbox.dateTime);
+    Serial.println();    
+
+    Serial.println("STEP 5: Executing relay toggle...");  // <-- Add this back!
+    relayStartTime = millis();
+
     pinMode(KY002S_TRIGGER, OUTPUT);
-    pinMode(KY002S_STATUS, INPUT);   
+    pinMode(KY002S_STATUS, INPUT_PULLDOWN);
 
     bool isCurrentlyOn = (digitalRead(KY002S_STATUS) == HIGH);
+    bool requestedOn = (inbox.switchData == 1);  // 1=ON, 2=OFF
 
-    // Display Requested state
-    Serial.print("Requested State: ");
-    Serial.println(inbox.switchData == 1 ? "ON" : "OFF");
+    Serial.print("  Current State: ");
+    Serial.println(isCurrentlyOn ? "ON" : "OFF");
+    Serial.print("  Requested State: ");
+    Serial.println(requestedOn ? "ON" : "OFF");
 
-    // Toggle logic
-    if (KY002S_STATUS == LOW){
+    if (isCurrentlyOn != requestedOn) {
+      // State needs to change - send toggle pulse
       digitalWrite(KY002S_TRIGGER, HIGH);
       vTaskDelay(pdMS_TO_TICKS(PULSE_MS));
       digitalWrite(KY002S_TRIGGER, LOW);
-    } 
-    
-    if(KY002S_STATUS == HIGH) {
-      digitalWrite(KY002S_TRIGGER, HIGH);
-      vTaskDelay(pdMS_TO_TICKS(PULSE_MS));
-      digitalWrite(KY002S_TRIGGER, LOW);
-    }
-      
-      if (inbox.switchData == 1) {
-        Serial.println("✓ Battery Power Switched ON");
-      } else {
-        Serial.println("✓ Battery Power Switched OFF");
-      }
+
+      Serial.print("  ✓ Battery Power Switched ");
+      Serial.println(requestedOn ? "ON" : "OFF");
     } else {
-      Serial.println("⚠ Already in requested state - No toggle needed");
+      Serial.println("  ⚠ Already in requested state - No toggle needed");
     }
+    
+    relayCompleteTime = millis();
+    Serial.print("  Relay operation time: ");
+    Serial.print(relayCompleteTime - relayStartTime);
+    Serial.println(" ms");
+    Serial.println();
 
     // Send ACK
+    Serial.println("STEP 6: Sending ACK to transmitter...");
+    ackStartTime = millis();
     waitForAux();
     e220ttl.sendFixedMessage(0, TRANSMITTER_ADDRESS, CHANNEL, "ACK");
-    Serial.println("✓ ACK Sent to Transmitter");
     waitForAux();
-  
+    ackCompleteTime = millis();
+    
+    Serial.print("  ACK sent successfully in ");
+    Serial.print(ackCompleteTime - ackStartTime);
+    Serial.println(" ms");
+    Serial.println();
+
+    Serial.println("==============================");
+    Serial.print("   WOR RECEIVE COMPLETE (");
+    Serial.print(ackCompleteTime - wakeTime);
+    Serial.println(" ms)");
+    Serial.println("==============================");
+    Serial.println();
+    
+    printTimingSummary();
+  }
+
   vTaskDelay(pdMS_TO_TICKS(500));
-  //Serial.println("Entering Deep Sleep...");
   enterDeepSleep();
   vTaskDelete(NULL);
+}
+
+// ================================================================
+// Print Timing Summary
+// ================================================================
+void printTimingSummary() {
+  Serial.println("╔════════════════════════════════════════╗");
+  Serial.println("║        TIMING BREAKDOWN                ║");
+  Serial.println("╚════════════════════════════════════════╝");
+  
+  Serial.println("Phase                          Duration");
+  Serial.println("--------------------------------------------");
+  
+  if (radioReadyTime > 0) {
+    Serial.print("Wake to Radio Ready:           ");
+    Serial.print(radioReadyTime - wakeTime);
+    Serial.println(" ms");
+  }
+  
+  if (packetReceivedTime > 0) {
+    Serial.print("Packet Reception:              ");
+    Serial.print(packetReceivedTime - packetStartTime);
+    Serial.println(" ms");
+  }
+  
+  if (relayCompleteTime > 0) {
+    Serial.print("Relay Toggle:                  ");
+    Serial.print(relayCompleteTime - relayStartTime);
+    Serial.println(" ms");
+  }
+  
+  if (ackCompleteTime > 0) {
+    Serial.print("ACK Transmission:              ");
+    Serial.print(ackCompleteTime - ackStartTime);
+    Serial.println(" ms");
+  }
+  
+  Serial.println("--------------------------------------------");
+  Serial.print("TOTAL CYCLE TIME:              ");
+  Serial.print(ackCompleteTime - wakeTime);
+  Serial.println(" ms");
+  Serial.println();
 }
 
 // ================================================================
 // Power Management: S3 Optimized Deep Sleep
 // ================================================================
 void enterDeepSleep() {
+  sleepPrepTime = millis();
+
+  if (rtc_get_reset_reason(0) == ESP_RST_POWERON) {
+    Serial.println("\n╔════════════════════════════════════════╗");
+    Serial.println("║       ENTERING DEEP SLEEP              ║");
+    Serial.println("╚════════════════════════════════════════╝");
+  } 
   
-  if(inbox.switchData == 1){
-    Serial.println("\n>>> Awaiting countdown timer to expire...\n");
-  }else if(inbox.switchData == 2){
-    Serial.println("\n>>> Entering Deep Sleep...\n");
+  if (rtc_get_reset_reason(0) != ESP_RST_POWERON) {
+    Serial.println("\n╔════════════════════════════════════════╗");
+    Serial.println("║     RECEIVER CYCLE COMPLETE            ║");
+    Serial.println("║       ENTERING DEEP SLEEP              ║");
+    Serial.println("╚════════════════════════════════════════╝");
   }
+
+  if(inbox.switchData == 1){
+    Serial.println("\n >>> Awaiting countdown timer to expire...");
+  }else if(inbox.switchData == 2){
+    Serial.println("\n >>> Awaiting next web request");  
+  } 
 
   Serial.flush();
 
@@ -309,20 +419,17 @@ void enterDeepSleep() {
   waitForAux();
   vTaskDelay(pdMS_TO_TICKS(100));
   
-  // Initialize RTC Domain for S3
   rtc_gpio_init(AUX_PIN);
   rtc_gpio_set_direction(AUX_PIN, RTC_GPIO_MODE_INPUT_ONLY);
 
-  // Latch Pins
   gpio_hold_en(M0_PIN);
   gpio_hold_en(M1_PIN);
   gpio_deep_sleep_hold_en();
 
-  esp_sleep_enable_ext0_wakeup(AUX_PIN, 0); // Wake on AUX LOW
+  esp_sleep_enable_ext0_wakeup(AUX_PIN, 0);
   esp_deep_sleep_start();
 }
 
 void loop() {
   // Idle
 }
-
