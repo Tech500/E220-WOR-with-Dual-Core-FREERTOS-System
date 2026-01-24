@@ -408,9 +408,9 @@ void enterDeepSleep() {
   }
 
   if(inbox.switchData == 1){
-    Serial.println("\n >>> Awaiting countdown timer to expire...");
+    Serial.println("\n >>> Awaiting countdown timer to expire...\n\n");
   }else if(inbox.switchData == 2){
-    Serial.println("\n >>> Awaiting next web request");  
+    Serial.println("\n >>> Awaiting next web request\n\n");  
   } 
 
   Serial.flush();
@@ -433,3 +433,4 @@ void enterDeepSleep() {
 void loop() {
   // Idle
 }
+
