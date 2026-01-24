@@ -10,7 +10,7 @@ This project demonstrates implementation of LoRa communication with deep sleep p
 
 Video demonstration of project:  [Demonstration](https://drive.google.com/file/d/1AwHzdBJNkUyV5_DEXMmgqUM9zlnS1TRc/view?usp=sharing)
 
-Putty log showing squence of [receiving events with event timing](https://drive.google.com/file/d/1NKLSYEWCUOPQtE2oetw9T8afeHWkJF_z/view?usp=sharing)
+Putty log showing squence of [receiving events with event timing](https://drive.google.com/file/d/1pmWGF3FRLCzYx-g6jHQ6UVcXRR5Ff-Vo/view?usp=sharing)
 
 ## Key Features
 
