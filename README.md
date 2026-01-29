@@ -64,6 +64,9 @@ This project was developed with significant assistance from various AI language 
 - Project structure and organization
 - Deep technical problem-solving for ESP32 platform specifics
 
+### Copilot (Microsoft) - Code conversion to FreeRTOS
+- Initial dual-core FreeRTOS structure
+
 #### ChatGPT (OpenAI) – Development support
 - Code refinement and alternative implementation suggestions
 - Documentation assistance
