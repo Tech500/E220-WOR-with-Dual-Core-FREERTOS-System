@@ -1,79 +1,46 @@
-# E220 WOR Remote Switch System
+## Project Credits & Acknowledgments
 
-## Project Overview
-**Wake-On-Radio (WOR) Remote Battery Switch Control**
+This project wouldn't have been possible without the contributions and support of the following individuals and AI assistants:
 
-Hardware: ESP32/ESP32-S3 + EBYTE E220-900T30D LoRa Module
+**William Lucid (AB9NQ)** – Project author and developer
 
-Development Date: January 2026
+### AI Collaboration Team
 
----
+This project was developed with significant assistance from various AI language models, each contributing their unique strengths to different aspects of the development:
 
-## Credits & Acknowledgments
+#### Claude (Anthropic) – Primary development partner
+- Advanced code architecture and FreeRTOS dual-core implementation
+- Technical documentation and markdown formatting
+- Code optimization and debugging assistance
+- Project structure and organization
+- Deep technical problem-solving for ESP32 platform specifics
 
-### Lead Developer
-**William Lucid (AB9NQ)**
+### Copilot (Microsoft) - Code conversion to FreeRTOS
+- Initial dual-core FreeRTOS structure
 
-### AI Development Team
-- **Claude (Anthropic)** - Primary code architecture, debugging, WOR protocol implementation, dual-core optimization
-- **Microsoft Copilot** - Initial dual-core FreeRTOS structure
-- **Google Gemini** - Code refinement assistance
+#### ChatGPT (OpenAI) – Development support
+- Code refinement and alternative implementation suggestions
+- Documentation assistance
+- General programming consultation
+- Code review and improvement recommendations
+
+#### Gemini (Google) – Research and analysis
+- Technical research and background information
+- Comparison analysis of different approaches
+- Additional code examples and references
+- Verification of technical concepts
 
 ### Special Thanks
-- **Renzo Mischianti** for his E220 Library and Support Forum
-- Community support from **ESP32.com** and **RNTLabs.com**
 
----
+**Renzo Mischianti (xReef)**
+- LoRa E220 Library development and maintenance
+- Comprehensive E220 Ebyte articles and documentation
+- Community support and technical guidance
+- E220 support resources and examples
 
-## Technical Achievement
+**Wolfgang Ewald**
+- Excellent tutorial: "Using LoRa with the EByte E220, E22 and E32 series"
+- Practical hands-on guidance and real-world examples
+- Valuable insights into LoRa implementation
 
-Successfully implemented reliable Wake-On-Radio (WOR) communication with deep sleep power management, achieving sub-second wake-up times and stable dual-core operation.
-
----
-
-## Key Features
-
-- ✅ WOR preamble + data message transmission
-- ✅ Deep sleep with <50µA standby current
-- ✅ Automatic 60-second countdown timer
-- ✅ Bidirectional ACK communication
-- ✅ Detailed timing for power analysis
-- ✅ Dual-core FreeRTOS architecture (no watchdog crashes)
-
----
-
-## Debugging Journey
-
-This project overcame numerous challenges including:
-
-- Pin assignment corrections (M0/M1 swap)
-- Air data rate mismatches
-- RF overload at close range
-- Configuration persistence issues
-- Watchdog timer crashes
-- Timing synchronization between TX and RX
-
----
-
-## License
-
-MIT License
-
----
-
-## Contact
-
-**William Lucid**  
-GitHub: [@Tech500](https://github.com/Tech500)
-
----
-
-## Documentation & Power Analysis
-
-Nordic PPK 2 power measurements and detailed analysis will be available soon at [Tech500's GitHub Repository]([https://github.com/Tech50](https://github.com/Tech500/E220-WOR-with-Dual-Core-FREERTOS-System)0).
-
----
-
-> *"From configuration chaos to a work of art!"* - William Lucid (AB9NQ)
-
----
+  
