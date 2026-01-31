@@ -51,7 +51,7 @@ Released under the [MIT License](LICENSE), making it free for both personal and 
 
 This project wouldn't have been possible without the contributions and support of the following individuals and AI assistants:
 
-**William Lucid (Tech500)** – Project author and developer
+**William Lucid, AB9NQ (Tech500)** – Project author and developer
 
 ### AI Collaboration Team
 
